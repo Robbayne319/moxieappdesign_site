@@ -104,7 +104,7 @@ function render(V){
  $('per').textContent=V.period||'';
  $('bug').classList.toggle('on',V.status!=='setup');
  var big=V.status==='ht'||V.status==='ft';
- if(big){$('bk').textContent=V.status==='ft'?'FULL TIME':'HALF TIME';$('bs').textContent=V.home.score+' – '+V.away.score;
+ if(big){$('bk').textContent=V.bigLabel||(V.status==='ft'?'FULL TIME':'HALF TIME');$('bs').textContent=V.home.score+' – '+V.away.score;
   crest($('bhc'),V.home.name,V.home.logo,V.home.abbr);crest($('bac'),V.away.name,V.away.logo,V.away.abbr);
   $('bn').textContent=(V.home.name+'  ·  '+V.away.name).toUpperCase();$('bsc').textContent=V.scorers||''}
  $('big').classList.toggle('on',big);
@@ -112,7 +112,7 @@ function render(V){
  first=false;tick();
 }
 function bumpSet(id,v){var el=$(id);if(el.textContent!==String(v)){el.textContent=v;if(!first){el.classList.remove('bump');void el.offsetWidth;el.classList.add('bump')}}}
-function tick(){if(!last)return;var c=last.clock||{},run=c.runAt!=null,el=c.baseMs+(run?Date.now()-c.runAt:0);
+function tick(){if(!last)return;var c=last.clock||{},run=c.runAt!=null,el=c.baseMs+(run?Date.now()-c.runAt:0);if(c.lenMs)el=Math.min(el,c.lenMs);
  $('ct').textContent=mmss(c.dir==='down'?c.lenMs-el:el);$('clk').classList.toggle('paused',!run)}
 setInterval(tick,250);
 var q=[],busy=false;
@@ -134,6 +134,48 @@ function next(){var e=q.shift();if(!e){busy=false;return}busy=true;
  setTimeout(next,1200);
 }
 window.FSBug={render:render};
+
+
+// ---- live mode: ?t=CODE reads the team's live game (no sign-in; the code only opens score, clock and events) ----
+var SUPA='https://mecagvrgswbnrvfuqset.supabase.co',KEY='sb_publishable_XUVw1UF5iMdTaOHAT54FyA_q5Cu1IcX';
+function shortP(l){return (l||'').replace(' Half','').replace('1st','1H').replace('2nd','2H').replace('Overtime','OT').slice(0,4).toUpperCase()}
+function mMin(ps,pi,e){var off=0;for(var i=0;i<pi&&i<ps.length;i++)off+=(ps[i].len||2400)/60;var len=((ps[pi]||{}).len||2400)/60;return Math.round(off+Math.min(Math.floor((e||0)/60)+1,len))}
+function toView(d,off){
+ var t=d.team||{},g=d.game,P=d.players||{},opp=(g&&g.opponent)||'Opponent';
+ setColors(hex(Q.get('p')||t.primary,'#e0b84c'),hex(Q.get('a')||t.accent,'#6b1bbb'),hex(Q.get('o'),'#2b2f3a'));
+ var V={home:{name:t.name||'Home',abbr:(t.abbr||'').toUpperCase().slice(0,4),score:0},away:{name:opp,abbr:abbr(opp),score:0},events:[],status:'setup',period:''};
+ if(!g)return V;
+ var ps=g.periods||[],pi=g.pi||0,per=ps[pi]||{len:2400,elapsed:0,label:''},lenMs=(per.len||2400)*1000;
+ var who=function(id){var p=P[id];return p?{num:p.n,name:p.l}:{num:null,name:''}};
+ var ours=[];
+ (g.goals||[]).forEach(function(x){var us=x.side==='us';us?V.home.score++:V.away.score++;var m=mMin(ps,x.pi,x.e);
+  var w=us&&!x.og?who(x.scorer):{num:null,name:x.og?'Own goal':''},a=us&&x.assist?who(x.assist):null;
+  if(us&&!x.og)ours.push({k:w.name||('#'+(w.num||'?')),m:m});
+  V.events.push({id:'g'+x.id,kind:'goal',side:us?'home':'away',min:m,num:w.num,name:w.name||(us?'':opp),
+   assist:a?('#'+a.num+(a.name?' '+a.name:'')):(x.pk?'PENALTY':'')})});
+ (g.cards||[]).forEach(function(x){var us=x.side==='us',w=us?who(x.player):{num:x.oppNum||null,name:''};
+  V.events.push({id:'c'+x.id,kind:'card',side:us?'home':'away',min:mMin(ps,x.pi,x.e),color:(x.color==='R'||x.second)?'red':'yellow',num:w.num,name:w.name||(us?'':opp)})});
+ (g.subs||[]).forEach(function(x){var o=x.offs||[],n=x.ons||[];for(var i=0;i<Math.max(o.length,n.length);i++){var a=who(o[i]),b=who(n[i]);
+  V.events.push({id:'s'+x.id+'_'+i,kind:'sub',side:'home',min:mMin(ps,x.pi,x.e),num:a.num,name:a.name,inNum:b.num,inName:b.name})}});
+ var down=t.clockDir!=='up';
+ V.clock={baseMs:(per.elapsed||0)*1000,runAt:g.running&&g.runStart?g.runStart-off:null,dir:down?'down':'up',lenMs:lenMs};
+ V.period=shortP(per.label);
+ if(g.ended||g.status==='final'){V.status='ft'}
+ else if(!g.running&&per.elapsed>=per.len&&pi<ps.length-1){V.status='ht';V.bigLabel=(pi===0&&ps.length===2)?'HALF TIME':'END OF '+(per.label||'PERIOD').toUpperCase()}
+ else V.status='live';
+ var by={};ours.forEach(function(x){(by[x.k]=by[x.k]||[]).push(x.m+"'")});
+ V.scorers=Object.keys(by).map(function(k){return k+' '+by[k].join(', ')}).join('  ·  ');
+ return V;
+}
+if(Q.has('t')&&!Q.has('demo')){
+ var poll=function(){
+  fetch(SUPA+'/rest/v1/rpc/stream_bug',{method:'POST',cache:'no-store',headers:{apikey:KEY,'Content-Type':'application/json'},body:JSON.stringify({tok:Q.get('t')})})
+   .then(function(r){return r.json()}).then(function(d){
+    if(!d||d.code){$('bug').classList.remove('on');$('big').classList.remove('on');$('note').style.display='block';$('note').textContent='SCOREBUG LINK EXPIRED · GET A NEW ONE IN FINALSHEET';return}
+    $('note').style.display='none';render(toView(d,d.now-Date.now()));
+   }).catch(function(){}).then(function(){setTimeout(poll,2000)});
+ };poll();
+}
 
 // ---- demo mode: fake game that moves on its own (no account, no database) ----
 if(Q.has('demo')||!Q.has('t')){
