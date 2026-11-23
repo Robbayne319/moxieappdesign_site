@@ -54,6 +54,9 @@ html,body{background:transparent!important;overflow:hidden;width:100%;height:100
 .row .s{font:400 140px Anton;line-height:1}
 .names{font:800 18px Inter;letter-spacing:.06em}
 .scorers{font:700 16px Inter;opacity:.8;margin-top:6px}
+.mark{position:absolute;left:42px;top:90px;display:flex;align-items:center;gap:7px;background:rgba(0,0,0,.55);color:#fff;font:800 12px Inter;letter-spacing:.14em;padding:4px 10px 4px 4px;border-radius:0 0 8px 8px;opacity:0;transition:opacity .6s .3s}
+.mark img{width:20px;height:20px;border-radius:5px}
+.bug.on~.mark,.big.on~.mark{opacity:1}
 .note{position:absolute;left:36px;bottom:20px;font:800 12px Inter;color:#fff;background:rgba(0,0,0,.55);padding:6px 10px;border-radius:6px;letter-spacing:.1em;display:none}
 </style></head>
 <body><div id="stage">
@@ -68,6 +71,7 @@ html,body{background:transparent!important;overflow:hidden;width:100%;height:100
  <div class="big" id="big"><div class="bc"><span class="k" id="bk">HALF TIME</span>
   <div class="row"><div class="crest" id="bhc" style="background:var(--p);color:var(--a)"></div><div class="s" id="bs">0 – 0</div><div class="crest" id="bac" style="background:var(--ot);color:var(--o)"></div></div>
   <div class="names" id="bn"></div><div class="scorers" id="bsc"></div></div></div>
+ <div class="mark"><img src="https://moxieappdesign.com/finalsheet/media/icon-180.png" alt="">FINALSHEET</div>
  <div class="note" id="note"></div>
 </div>
 <script>
