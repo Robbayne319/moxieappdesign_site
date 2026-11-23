@@ -143,7 +143,7 @@ function mMin(ps,pi,e){var off=0;for(var i=0;i<pi&&i<ps.length;i++)off+=(ps[i].l
 function toView(d,off){
  var t=d.team||{},g=d.game,P=d.players||{},opp=(g&&g.opponent)||'Opponent';
  setColors(hex(Q.get('p')||t.primary,'#e0b84c'),hex(Q.get('a')||t.accent,'#6b1bbb'),hex(Q.get('o'),'#2b2f3a'));
- var V={home:{name:t.name||'Home',abbr:(t.abbr||'').toUpperCase().slice(0,4),score:0},away:{name:opp,abbr:abbr(opp),score:0},events:[],status:'setup',period:''};
+ var V={home:{name:t.name||'Home',abbr:(function(a){a=(a||'').toUpperCase().slice(0,4);return a&&a!=='HOME'?a:abbr(t.name)})(t.abbr),score:0},away:{name:opp,abbr:abbr(opp),score:0},events:[],status:'setup',period:''};
  if(!g)return V;
  var ps=g.periods||[],pi=g.pi||0,per=ps[pi]||{len:2400,elapsed:0,label:''},lenMs=(per.len||2400)*1000;
  var who=function(id){var p=P[id];return p?{num:p.n,name:p.l}:{num:null,name:''}};
